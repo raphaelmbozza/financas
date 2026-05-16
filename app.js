@@ -1,12 +1,13 @@
 // ============================================================
 //  CONFIGURAÇÃO — preencha com seus dados do Supabase
 // ============================================================
-const SUPABASE_URL = 'https://hsxvstbhvrkaevlgtens.supabase.co';
+const SUPABASE_URL = 'https://hsxvstbhvrkaevlgtens._sb.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhzeHZzdGJodnJrYWV2bGd0ZW5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MzgxMDAsImV4cCI6MjA5NDQxNDEwMH0.v1x8z5_TFFPSBm2P2nOLcIYpTa13TI9jsJmhPTqOBew';
 const RESEND_API_KEY = 'COLE_SUA_CHAVE_RESEND_AQUI';
 // ============================================================
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const _sb = _sb; // alias para compatibilidade
 
 // ====== CONSTANTES ======
 
@@ -139,7 +140,7 @@ async function handleLogin(e) {
   const email = document.getElementById('login-email').value;
   const password = document.getElementById('login-password').value;
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await _sb.auth.signInWithPassword({ email, password });
   if (error) {
     showAlert('auth-error', 'E-mail ou senha incorretos.');
     btn.disabled = false;
@@ -157,7 +158,7 @@ async function handleRegister(e) {
   const email = document.getElementById('reg-email').value;
   const password = document.getElementById('reg-password').value;
 
-  const { error } = await supabase.auth.signUp({ email, password });
+  const { error } = await _sb.auth.signUp({ email, password });
   if (error) {
     showAlert('auth-error', error.message);
     btn.disabled = false;
@@ -170,10 +171,10 @@ async function handleRegister(e) {
 }
 
 async function handleLogout() {
-  await supabase.auth.signOut();
+  await _sb.auth.signOut();
 }
 
-supabase.auth.onAuthStateChange((event, session) => {
+_sb.auth.onAuthStateChange((event, session) => {
   currentUser = session?.user ?? null;
   if (currentUser) {
     document.getElementById('view-auth').classList.add('hidden');
@@ -189,7 +190,7 @@ supabase.auth.onAuthStateChange((event, session) => {
 // ====== USER CATEGORY RULES ======
 
 async function loadUserRules() {
-  const { data } = await supabase
+  const { data } = await _sb
     .from('category_rules')
     .select('*')
     .eq('user_id', currentUser.id);
@@ -199,12 +200,12 @@ async function loadUserRules() {
 async function saveUserRule(pattern, category) {
   const existing = userCategoryRules.find(r => r.description_pattern === pattern);
   if (existing) {
-    await supabase.from('category_rules')
+    await _sb.from('category_rules')
       .update({ category_name: category })
       .eq('id', existing.id);
     existing.category_name = category;
   } else {
-    const { data } = await supabase.from('category_rules').insert({
+    const { data } = await _sb.from('category_rules').insert({
       user_id: currentUser.id,
       description_pattern: pattern,
       category_name: category
@@ -216,7 +217,7 @@ async function saveUserRule(pattern, category) {
 // ====== MONTH SELECTORS ======
 
 async function populateMonthSelects() {
-  const { data } = await supabase
+  const { data } = await _sb
     .from('transactions')
     .select('month_year')
     .eq('user_id', currentUser.id)
@@ -344,7 +345,7 @@ async function confirmImport() {
   const monthYear = pendingTransactions[0].month_year;
 
   // Remove existing for same month to allow re-import
-  await supabase.from('transactions')
+  await _sb.from('transactions')
     .delete()
     .eq('user_id', currentUser.id)
     .eq('month_year', monthYear);
@@ -358,7 +359,7 @@ async function confirmImport() {
     month_year: r.month_year,
   }));
 
-  const { error } = await supabase.from('transactions').insert(toInsert);
+  const { error } = await _sb.from('transactions').insert(toInsert);
 
   btn.disabled = false;
   btn.textContent = 'Importar tudo';
@@ -387,7 +388,7 @@ async function loadDashboard() {
   const monthYear = document.getElementById('dash-month-select').value;
   if (!monthYear) return;
 
-  const { data } = await supabase
+  const { data } = await _sb
     .from('transactions')
     .select('*')
     .eq('user_id', currentUser.id)
@@ -503,7 +504,7 @@ async function loadTransactions() {
   const monthYear = document.getElementById('tx-month-select').value;
   if (!monthYear) return;
 
-  const { data } = await supabase
+  const { data } = await _sb
     .from('transactions')
     .select('*')
     .eq('user_id', currentUser.id)
@@ -551,7 +552,7 @@ function filterTransactions() {
 }
 
 async function updateCategory(id, description, category) {
-  await supabase.from('transactions').update({ category }).eq('id', id);
+  await _sb.from('transactions').update({ category }).eq('id', id);
 
   const tx = allTransactions.find(t => t.id === id);
   if (tx) tx.category = category;
@@ -562,7 +563,7 @@ async function updateCategory(id, description, category) {
 // ====== GOAL ======
 
 async function loadGoalData() {
-  const { data } = await supabase
+  const { data } = await _sb
     .from('goals')
     .select('*')
     .eq('user_id', currentUser.id)
@@ -580,10 +581,10 @@ async function saveGoal() {
   }
 
   if (userGoal) {
-    await supabase.from('goals').update({ target_amount: amount }).eq('id', userGoal.id);
+    await _sb.from('goals').update({ target_amount: amount }).eq('id', userGoal.id);
     userGoal.target_amount = amount;
   } else {
-    const { data } = await supabase.from('goals').insert({
+    const { data } = await _sb.from('goals').insert({
       user_id: currentUser.id,
       target_amount: amount,
       label: 'Independência Financeira'
@@ -606,7 +607,7 @@ async function loadGoalView() {
   }
 
   // Get all investment transactions grouped by month
-  const { data } = await supabase
+  const { data } = await _sb
     .from('transactions')
     .select('month_year, amount, category')
     .eq('user_id', currentUser.id)
@@ -685,7 +686,7 @@ async function loadGoalView() {
 // ====== BUDGET LIMITS ======
 
 async function loadBudgets() {
-  const { data } = await supabase
+  const { data } = await _sb
     .from('budget_limits')
     .select('*')
     .eq('user_id', currentUser.id);
@@ -697,7 +698,7 @@ async function saveBudget(category, limitStr) {
   const limit = parseFloat(String(limitStr).replace(',', '.'));
   if (isNaN(limit) || limit <= 0) return false;
 
-  const { data: existing } = await supabase
+  const { data: existing } = await _sb
     .from('budget_limits')
     .select('id')
     .eq('user_id', currentUser.id)
@@ -705,11 +706,11 @@ async function saveBudget(category, limitStr) {
     .maybeSingle();
 
   if (existing) {
-    await supabase.from('budget_limits')
+    await _sb.from('budget_limits')
       .update({ monthly_limit: limit })
       .eq('id', existing.id);
   } else {
-    await supabase.from('budget_limits').insert({
+    await _sb.from('budget_limits').insert({
       user_id: currentUser.id,
       category_name: category,
       monthly_limit: limit
@@ -774,7 +775,7 @@ async function loadLimitsView() {
   const now = new Date();
   const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  const { data } = await supabase
+  const { data } = await _sb
     .from('transactions')
     .select('category, amount')
     .eq('user_id', currentUser.id)
@@ -828,7 +829,7 @@ async function saveLimitAndRefresh(category) {
 // ====== INIT ======
 
 (async () => {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await _sb.auth.getSession();
   if (session) {
     currentUser = session.user;
     document.getElementById('view-auth').classList.add('hidden');
