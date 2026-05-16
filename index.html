@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minhas Finanças</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ==================== AUTH ==================== -->
+  <div id="view-auth">
+    <div class="auth-card">
+      <div class="auth-logo">💰</div>
+      <h1 class="auth-title">Minhas Finanças</h1>
+      <p class="auth-sub">Controle simples para poupar mais</p>
+
+      <div id="auth-error" class="alert alert-error hidden"></div>
+
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('login')">Entrar</button>
+        <button class="tab" onclick="switchTab('register')">Criar conta</button>
+      </div>
+
+      <form id="form-login" onsubmit="handleLogin(event)">
+        <div class="field">
+          <label>E-mail</label>
+          <input type="email" id="login-email" placeholder="seu@email.com" required>
+        </div>
+        <div class="field">
+          <label>Senha</label>
+          <input type="password" id="login-password" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full" id="btn-login">Entrar</button>
+      </form>
+
+      <form id="form-register" class="hidden" onsubmit="handleRegister(event)">
+        <div class="field">
+          <label>E-mail</label>
+          <input type="email" id="reg-email" placeholder="seu@email.com" required>
+        </div>
+        <div class="field">
+          <label>Senha (mínimo 6 caracteres)</label>
+          <input type="password" id="reg-password" placeholder="••••••••" required minlength="6">
+        </div>
+        <button type="submit" class="btn btn-primary btn-full" id="btn-register">Criar conta</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== APP ==================== -->
+  <div id="app-shell" class="hidden">
+
+    <!-- Top nav -->
+    <header class="topbar">
+      <span class="topbar-title">💰 Minhas Finanças</span>
+      <button class="btn-icon" onclick="handleLogout()" title="Sair">⎋</button>
+    </header>
+
+    <!-- Bottom nav -->
+    <nav class="bottomnav">
+      <button class="nav-item active" onclick="showView('dashboard')" id="nav-dashboard">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Início</span>
+      </button>
+      <button class="nav-item" onclick="showView('upload')" id="nav-upload">
+        <span class="nav-icon">⬆️</span>
+        <span class="nav-label">Upload</span>
+      </button>
+      <button class="nav-item" onclick="showView('transactions')" id="nav-transactions">
+        <span class="nav-icon">📋</span>
+        <span class="nav-label">Gastos</span>
+      </button>
+      <button class="nav-item" onclick="showView('limits')" id="nav-limits">
+        <span class="nav-icon">🔔</span>
+        <span class="nav-label">Limites</span>
+      </button>
+      <button class="nav-item" onclick="showView('goal')" id="nav-goal">
+        <span class="nav-icon">🎯</span>
+        <span class="nav-label">Meta</span>
+      </button>
+    </nav>
+
+    <!-- Main content -->
+    <main class="main-content">
+
+      <!-- ===== DASHBOARD ===== -->
+      <div id="view-dashboard" class="view">
+        <div class="view-header">
+          <h2>Resumo</h2>
+          <select id="dash-month-select" class="month-select" onchange="loadDashboard()"></select>
+        </div>
+
+        <!-- Saving goal alert -->
+        <div id="saving-alert" class="saving-alert hidden"></div>
+
+        <!-- Metric cards -->
+        <div class="cards-grid">
+          <div class="card card-green">
+            <div class="card-label">Receita</div>
+            <div class="card-value" id="dash-income">R$ —</div>
+          </div>
+          <div class="card card-red">
+            <div class="card-label">Gastos</div>
+            <div class="card-value" id="dash-expenses">R$ —</div>
+          </div>
+          <div class="card card-blue">
+            <div class="card-label">Poupado</div>
+            <div class="card-value" id="dash-saved">R$ —</div>
+          </div>
+          <div class="card card-orange">
+            <div class="card-label">% da renda</div>
+            <div class="card-value" id="dash-pct">—%</div>
+          </div>
+        </div>
+
+        <!-- 10% goal bar -->
+        <div class="panel">
+          <div class="panel-header">
+            <span>Meta: poupar 10% da renda</span>
+            <span id="dash-goal-label" class="badge">—</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="dash-progress-bar" style="width:0%"></div>
+          </div>
+          <div class="progress-info">
+            <span id="dash-progress-text">—</span>
+            <span id="dash-goal-target">Meta: R$ —</span>
+          </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="panel">
+          <div class="panel-header"><span>Gastos por categoria</span></div>
+          <div class="chart-container">
+            <canvas id="dash-chart"></canvas>
+          </div>
+          <div id="dash-legend" class="legend"></div>
+        </div>
+
+        <!-- Top expenses -->
+        <div class="panel">
+          <div class="panel-header"><span>Maiores gastos do mês</span></div>
+          <div id="dash-top-expenses" class="top-list">
+            <p class="empty-state">Nenhum dado ainda. Faça o upload do extrato.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== UPLOAD ===== -->
+      <div id="view-upload" class="view hidden">
+        <div class="view-header">
+          <h2>Importar Extrato</h2>
+        </div>
+
+        <div class="panel">
+          <p class="info-text">Exporte o extrato do seu banco em formato <strong>CSV</strong> com separador <strong>ponto e vírgula (;)</strong> e colunas: <code>Data;Descricao;Valor</code></p>
+
+          <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+            <div class="upload-icon">📁</div>
+            <p class="upload-text">Clique aqui ou arraste o arquivo CSV</p>
+            <p class="upload-sub">Formato: Data;Descricao;Valor</p>
+            <input type="file" id="file-input" accept=".csv" class="hidden" onchange="handleFileSelect(event)">
+          </div>
+        </div>
+
+        <div id="upload-preview" class="hidden">
+          <div class="panel">
+            <div class="panel-header">
+              <span id="upload-preview-title">—</span>
+              <span id="upload-count" class="badge">0 linhas</span>
+            </div>
+            <div id="upload-alert" class="alert hidden"></div>
+            <div class="table-wrap">
+              <table class="table" id="preview-table">
+                <thead>
+                  <tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Categoria</th></tr>
+                </thead>
+                <tbody id="preview-body"></tbody>
+              </table>
+            </div>
+            <div class="upload-actions">
+              <button class="btn btn-secondary" onclick="cancelUpload()">Cancelar</button>
+              <button class="btn btn-primary" id="btn-import" onclick="confirmImport()">Importar tudo</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="upload-success" class="hidden">
+          <div class="panel success-panel">
+            <div class="success-icon">✅</div>
+            <h3>Extrato importado!</h3>
+            <p id="upload-success-msg"></p>
+            <button class="btn btn-primary" onclick="showView('dashboard')">Ver dashboard</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== TRANSACTIONS ===== -->
+      <div id="view-transactions" class="view hidden">
+        <div class="view-header">
+          <h2>Lançamentos</h2>
+          <select id="tx-month-select" class="month-select" onchange="loadTransactions()"></select>
+        </div>
+
+        <div class="panel">
+          <div class="filter-row">
+            <select id="tx-cat-filter" class="filter-select" onchange="filterTransactions()">
+              <option value="">Todas as categorias</option>
+            </select>
+            <div class="tx-totals">
+              <span id="tx-total-label" class="tx-total-text">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="tx-list" class="tx-list">
+          <p class="empty-state">Nenhum lançamento. Importe um extrato.</p>
+        </div>
+      </div>
+
+      <!-- ===== LIMITS ===== -->
+      <div id="view-limits" class="view hidden">
+        <div class="view-header">
+          <h2>Limites por Categoria</h2>
+        </div>
+
+        <div class="panel">
+          <p class="info-text">Defina o limite mensal de cada categoria. Quando o gasto ultrapassar o limite, você receberá um email de alerta.</p>
+        </div>
+
+        <div id="limits-list" class="panel">
+          <p class="empty-state">Carregando...</p>
+        </div>
+      </div>
+
+      <!-- ===== GOAL ===== -->
+      <div id="view-goal" class="view hidden">
+        <div class="view-header">
+          <h2>Independência Financeira</h2>
+        </div>
+
+        <!-- Set goal -->
+        <div class="panel">
+          <div class="panel-header"><span>Valor alvo</span></div>
+          <div class="goal-form">
+            <div class="field">
+              <label>Quanto você precisa acumular? (R$)</label>
+              <input type="text" id="goal-target-input" placeholder="Ex: 2000000" class="input-large">
+            </div>
+            <button class="btn btn-primary" onclick="saveGoal()">Salvar meta</button>
+          </div>
+          <div id="goal-save-msg" class="alert hidden"></div>
+        </div>
+
+        <!-- Progress -->
+        <div class="panel" id="goal-progress-panel">
+          <div class="panel-header">
+            <span>Progresso</span>
+            <span id="goal-pct-label" class="badge badge-blue">0%</span>
+          </div>
+          <div class="goal-amounts">
+            <div class="goal-amount-item">
+              <div class="goal-amount-value" id="goal-accumulated">R$ 0</div>
+              <div class="goal-amount-label">Acumulado</div>
+            </div>
+            <div class="goal-amount-divider">de</div>
+            <div class="goal-amount-item">
+              <div class="goal-amount-value" id="goal-target-display">R$ —</div>
+              <div class="goal-amount-label">Meta</div>
+            </div>
+          </div>
+          <div class="progress-bar-bg progress-bar-lg">
+            <div class="progress-bar-fill" id="goal-progress-bar" style="width:0%"></div>
+          </div>
+          <div id="goal-projection" class="goal-projection"></div>
+        </div>
+
+        <!-- Monthly breakdown -->
+        <div class="panel">
+          <div class="panel-header"><span>Histórico de poupança por mês</span></div>
+          <div id="goal-history" class="goal-history">
+            <p class="empty-state">Nenhum dado ainda.</p>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
